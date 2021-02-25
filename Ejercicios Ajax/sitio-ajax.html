@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sitio con AJAX</title>
+    <style>
+        html {
+            box-sizing: border-box;
+            font-family: sans-serif;
+            font-size: 16px;
+        }
+        
+        *,
+        *:before,
+        *:after {
+            box-sizing: inherit;
+        }
+        
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        img {
+            max-width: 100%;
+            height: auto;
+            margin: 0 auto;
+        }
+        
+        main {
+            flex-grow: 1;
+        }
+        
+        .container {
+            margin-left: auto;
+            margin-right: auto;
+            max-width: 1200px;
+        }
+        
+        .header {
+            padding: .5rem;
+            background-color: antiquewhite;
+        }
+        
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo img {
+            width: 6rem;
+            height: auto;
+        }
+        
+        .menu {
+            display: flex;
+            justify-content: space-between;
+            font-size: 125%;
+        }
+        
+        .menu a {
+            color: rgb(30, 168, 210);
+            padding: 0 1vw;
+            transition: all .3s ease-in-out;
+        }
+        
+        .menu a:hover {
+            opacity: .75;
+        }
+        
+        li {
+            font-size: 150%;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <section class="header-content container">
+            <article class="logo">
+                <img src="https://i.dlpng.com/static/png/6935989_preview.png" alt="logo">
+            </article>
+            <nav class="menu">
+                <a href="assets/home.html">Home</a>
+                <a href="assets/acerca.html">Acerca</a>
+                <a href="assets/servicios.html">Servicios</a>
+                <a href="assets/contacto.html">Contacto</a>
+            </nav>
+        </section>
+    </header>
+    <main class="container"></main>
+    <footer class="footer container">
+        <p><small>Sitio diseñado por Daniel Camberos</small></p>
+    </footer>
+    <script>
+        const d = document,
+            $main = d.querySelector("main");
+
+        //Es como el metodo Ajax que se encargara de usar el XMLHttpRequest
+        const getHTML = (options) => {
+            let {
+                url,
+                sucess,
+                error
+            } = options;
+            const xhr = new XMLHttpRequest();
+
+            xhr.addEventListener("readystatechange", e => {
+                if (xhr.readyState !== 4) return;
+
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    let html = xhr.responseText;
+                    sucess(html);
+                } else {
+                    let message = xhr.statusText || "Ocurrrio un error";
+                    error(`Error ${xhr.status}: ${message}`);
+                }
+            });
+
+            //Abrir la peticion
+            xhr.open("GET", url);
+            xhr.setRequestHeader("Content-type", "text/html; charset=utf-8");
+            xhr.send();
+
+        }
+
+        //Cargar el DOM y se cargue la seccion de la pagina sin redireccionar a otra pagina
+        d.addEventListener("DOMContentLoaded", e => {
+            //Llamar la funcion getHTML que tiene como parametro el objeto opciones
+            getHTML({
+                url: "assets/home.html",
+                sucess: (html) => $main.innerHTML = html,
+                error: (err) => $main.innerHTML = `<h1>${err}</h1>`
+            });
+        });
+
+        //Delegacion de eventos
+        d.addEventListener("click", e => {
+            if (e.target.matches(".menu a")) {
+                e.preventDefault(); //Prevenir la accion y no hacer nada al hacer click al enlace del menu
+
+                //Mostrar el contenido
+                getHTML({
+                    url: e.target.href, //La ruta que dinamicamente tiene que cargar
+                    sucess: (html) => $main.innerHTML = html,
+                    error: (err) => $main.innerHTML = `<h1>${err}</h1>`
+                });
+            }
+        });
+    </script>
+</body>
+
+</html>

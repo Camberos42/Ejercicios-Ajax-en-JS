@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buscador de canciones</title>
+    <style>
+        html {
+            font-family: sans-serif;
+        }
+        
+        img {
+            max-width: 100%;
+            height: auto;
+        }
+        
+        main {
+            display: flex;
+            flex-direction: column-reverse;
+        }
+        
+        .loader {
+            display: none;
+            margin: auto;
+        }
+        /*Hacer los saltos de lineas que la misma API nos esta dando (flechitas como de enter)*/
+        
+        .song blockquote {
+            white-space: pre-wrap;
+        }
+        
+        @media screen and (min-width: 800px) {
+            main {
+                flex-direction: row;
+            }
+            /*Todos los hijos directos de main (no importa que sean)*/
+            main>* {
+                padding: 1rem;
+                flex-basis: 50%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Buscador de canciones</h1>
+    <form id="song-search">
+        <input type="text" name="artist" placeholder="Nombre del Intérprete" required>
+        <br>
+        <input type="text" name="song" placeholder="Nombre de la Canción" required>
+        <br>
+        <input type="submit">
+    </form>
+    <img class="loader" src="../assets/tail-spin.svg" alt="Cargando...">
+
+    <!--Aqui se mostrara un error en caso de que no se encuentre una cancion o artista -->
+    <aside class="error"></aside>
+    <!-- Aqui se mostrara la info del artista y la letra de la cancion -->
+    <main>
+        <article class="artist">
+        </article>
+        <article class="song">
+        </article>
+    </main>
+</body>
+
+<script>
+    const d = document,
+        $form = d.getElementById("song-search"),
+        $loader = d.querySelector(".loader"),
+        $error = d.querySelector(".error"),
+        $main = d.querySelector("main"),
+        $artist = d.querySelector(".artist"),
+        $song = d.querySelector(".song");
+
+    $form.addEventListener("submit", async e => {
+        e.preventDefault();
+
+        try {
+            $loader.style.display = "block";
+
+            //Guardar los valores de los input (name: artist y song)
+            let artist = e.target.artist.value.toLowerCase(),
+                song = e.target.song.value.toLowerCase(),
+                //Donde se ira agregando la info
+                $artistTemplate = "",
+                $songTemplate = "",
+                //Endpoints de las APIS
+                artistAPI = `https://theaudiodb.com/api/v1/json/1/search.php?s=${artist}`,
+                songAPI = `https://api.lyrics.ovh/v1/${artist}/${song}`,
+                //Peticiones fetch 
+                artistFetch = fetch(artistAPI),
+                songFetch = fetch(songAPI),
+                /*Se hace la deestructuracion para que se almacene la respuesta de cada peticion y se
+                hace de esta forma ya que no se cual es la que llegara primero*/
+                [artistRes, songRes] = await Promise.all([artistFetch, songFetch]),
+                //Una vez obtenida la respuesta lo convierto a json y solo espero esa conversion
+                artistData = await artistRes.json(),
+                songData = await songRes.json();
+
+            //console.log(artistRes, songRes);
+            console.log(artistData, songData);
+
+            //Hacer la validacion para cuando no encuentre una busqueda de artista o cancion
+
+            //Si se no encuentra algun valor en el array de artists
+            if (artistData.artist === null) {
+                $artistTemplate = `<h2>No existe el interprete<mark>${artist}</mark></h2>`
+            } else {
+                //Si si hay algo imprime la info del artista
+                let artist = artistData.artists[0];
+                $artistTemplate = `
+                <h2>${artist.strArtist}</h2>
+                <img src="${artist.strArtistThumb}" alt="${artist.strArtist}">
+                <p>${artist.intBornYear}-${(artist.intDiedYear || "Presente")}</p>
+                <p>${artist.strCountry}</p>
+                <p>${artist.strGenre}-${artist.strStyle}</p>
+                <a href="http://${artist.strWebsite}" target="_blank">Sitio Web</a>
+                <p>${artist.strBiographyEN}</p>
+                `
+            }
+
+            //Validar los lyrics (la respuesta manda error cuando no la encuentra y lyrics cuando si)
+            if (songData.error) {
+                $songTemplate = `<h2>No existe la cancion<mark>${song}</mark></h2>`
+            } else {
+                $songTemplate = `
+                <h2>${song.toUpperCase()}</h2>
+                <blockquote>${songData.lyrics}</blockquote>
+                `
+            }
+
+            //Quitar el loader ya que se haya mostrado toda la info
+            $loader.style.display = "none";
+            //Agregar el template para mostrar la info del artista y lyrics de la cancion
+            $artist.innerHTML = $artistTemplate;
+            $song.innerHTML = $songTemplate;
+        } catch (err) {
+            console.log(err);
+            let message = err.statusText || "Ocurrio un error";
+            $error.innerHTML = `<p>Error ${err.status}: ${err.message}</p>`;
+            $loader.style.display = "none";
+        }
+
+    });
+</script>
+
+</html>

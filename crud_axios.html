@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRUD API REST AJAX</title>
+</head>
+
+<body>
+    <h2>CRUD API REST Axios</h2>
+    <section class="crud">
+        <article>
+            <h2 class="crud-title">Agregar Santo</h2>
+            <form class="crud-form">
+                <input type="text" name="nombre" placeholder="Nombre" required>
+                <br>
+                <input type="text" name="constelacion" placeholder="Constelacion" required>
+                <br>
+                <input type="submit" value="Enviar">
+                <input type="hidden" name="id">
+            </form>
+        </article>
+        <article>
+            <h2>Ver Santos</h2>
+            <table class="crud-table">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Constelacion</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </article>
+    </section>
+    <template id="crud-template">
+        <tr>
+            <td class="name"> </td>
+            <td class="constallation"> </td>
+            <td>
+                <button class="edit">editar</button>
+                <button class="delete">eliminar</button>
+            </td>
+        </tr>
+    </template>
+
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script>
+        const d = document,
+            $table = d.querySelector(".crud-table"),
+            $form = d.querySelector(".crud-form"),
+            $title = d.querySelector(".crud-title"),
+            $template = d.querySelector("#crud-template").content, //Acceder al contenido del crud-template
+            $fragment = d.createDocumentFragment();
+
+        const getAll = async() => {
+            try {
+                let res = await axios.get("http://localhost:3000/santos"),
+                    json = await res.data; //Axios ya nos manda la respuesta en formato json
+                console.log(json);
+
+                //Imprimir los valores del json
+                json.forEach(el => {
+                    //Accediendo al template
+                    $template.querySelector(".name").textContent = el.nombre;
+                    $template.querySelector(".constallation").textContent = el.constelacion;
+                    $template.querySelector(".edit").dataset.id = el.id; //Seleccionar el boton edit y acceder a su data atribute, y almacenar la propiedad id en el data atribute del boton edit
+                    $template.querySelector(".edit").dataset.name = el.nombre;
+                    $template.querySelector(".edit").dataset.constallation = el.constelacion;
+                    $template.querySelector(".delete").dataset.id = el.id; //Seleccionar y acceder al boton delete
+
+                    //Para que se vean los valores hay que crear un clone para que importe un nodo 
+                    let $clone = d.importNode($template, true);
+                    $fragment.appendChild($clone);
+                });
+
+                //Insertar el fragmento
+                $table.querySelector("tbody").appendChild($fragment);
+
+            } catch (err) {
+                let message = err.statusText || "Ocurrió un error";
+                $table.insertAdjacentHTML("afterend", `<p><b>${err.status}: ${message}</b></p>`);
+            }
+        }
+        d.addEventListener("DOMContentLoaded", getAll);
+
+        d.addEventListener("submit", async e => {
+            if (e.target === $form) {
+                e.preventDefault();
+                if (!e.target.id.value) {
+                    //Create - POST
+                    try {
+                        //Se pasan los datos (de insomnia) de la cabecera y el metodo para guardarlos en el objeto
+                        let options = {
+                                method: "POST",
+                                headers: {
+                                    "Content-type": "application/json; charset=utf-8"
+                                },
+                                body: JSON.stringify({ //El valor de los datos del json
+                                    nombre: e.target.nombre.value,
+                                    constelacion: e.target.constelacion.value
+                                })
+                            },
+                            res = await fetch("http://localhost:3000/santos", options), //Se pasa el objeto options
+                            json = await res.json();
+
+                        location.reload();
+
+                    } catch (err) {
+                        let message = err.statusText || "Ocurrió un error";
+                        $form.insertAdjacentHTML("afterend", `<p><b>${err.status}: ${message}</b></p>`);
+                    }
+                } else {
+                    //Update - PUT
+                    try {
+                        //Se pasan los datos (de insomnia) de la cabecera y el metodo para guardarlos en el objeto
+                        let options = {
+                                method: "PUT",
+                                headers: {
+                                    "Content-type": "application/json; charset=utf-8"
+                                },
+                                body: JSON.stringify({ //El valor de los datos del json
+                                    nombre: e.target.nombre.value,
+                                    constelacion: e.target.constelacion.value
+                                })
+                            },
+                            res = await fetch(`http://localhost:3000/santos/${e.target.id.value}`, options), //Se pasa el objeto options
+                            json = await res.json();
+
+                        location.reload(); //Que recargue la pagina despues del codigo de arriba
+                    } catch (err) {
+                        let message = err.statusText || "Ocurrió un error";
+                        $form.insertAdjacentHTML("afterend", `<p><b>${err.status}: ${message}</b></p>`);
+                    }
+                }
+            }
+        });
+
+        d.addEventListener("click", async e => {
+            if (e.target.matches(".edit")) {
+                $title.textContent = "Editar Santo"; //Editar el H2 para que diga que se va a editar
+                $form.nombre.value = e.target.dataset.name; //Asignarle el valor del dataatribute a la caja de texto
+                $form.constelacion.value = e.target.dataset.constallation;
+                $form.id.value = e.target.dataset.id; //Lo tomara del hidden input 
+            }
+
+            if (e.target.matches(".delete")) {
+                let isDelete = confirm(`¿Estas seguro de eliminar el id ${e.target.dataset.id}?`);
+                if (isDelete) {
+                    //DELETE
+                    try {
+                        //Se pasan los datos (de insomnia) de la cabecera y el metodo para guardarlos en el objeto
+                        let options = {
+                                method: "DELETE",
+                                headers: {
+                                    "Content-type": "application/json; charset=utf-8"
+                                }
+                            },
+                            //Solo cambia el dataset.id ya que sera el id que tomara del input oculto
+                            res = await fetch(`http://localhost:3000/santos/${e.target.dataset.id}`, options),
+                            json = await res.json();
+
+                        location.reload(); //Que recargue la pagina despues del codigo de arriba
+                    } catch (err) {
+                        let message = err.statusText || "Ocurrió un error";
+                        alert(`Error:${err.status}: ${message}`);
+                    }
+                }
+
+            }
+        });
+    </script>
+</body>
+
+</html>

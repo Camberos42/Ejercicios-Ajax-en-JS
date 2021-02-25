@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Selects anidados</title>
+</head>
+
+<body>
+    <h1>Selects anidados</h1>
+    <h2>México</h2>
+    <!-- Primer select -->
+    <label for="select-primary">Estados</label>
+    <select name="primary" id="select-primary">
+        <option value="">Elige un Estado</option>
+    </select>
+    <p></p>
+    <!-- Segundo  select -->
+    <label for="select-secondary">Municipios</label>
+    <select name="secondary" id="select-secondary">
+        <option value="">Elige un Muinicipio</option>
+    </select>
+    <p></p>
+    <!-- Tercer  select -->
+    <label for="select-third">Colonias</label>
+    <select name="secondary" id="select-third">
+        <option value="">Elige una Colonia</option>
+    </select>
+    <p></p>
+    <script>
+        const d = document,
+            $selectPrimary = d.getElementById("select-primary"),
+            $selectSecundary = d.getElementById("select-secondary"),
+            $selectThird = d.getElementById("select-third");
+
+        //Funcion para cargar los Estados 
+        function loadStates() {
+            //Se hace la peticion fetch a la API
+            fetch("https://api-sepomex.hckdrk.mx/query/get_estados")
+                //Si la respuesta es ok retornara la respuesta en formato json, si 
+                .then(res => res.ok ? res.json() : Promise.reject(res))
+                //Retornar el json con los Estados de la Rep
+                .then(json => {
+                    console.log(json);
+                    let $options = `<option value="">Elige un Estado</option>`;
+                    //Concatenamos un option por cada estado del json
+                    json.response.estado.forEach(el => $options += `<option value="${el}">${el}</option>`);
+                    $selectPrimary.innerHTML = $options;
+
+                })
+                //Lo que devolvera cuando la respuesta no sea ok y sea error
+                .catch(err => {
+                    console.log(err);
+                    let message = err.statusText || "Ocurrio un error";
+                    //Porque <p> es hermano del select primary y es donde colocaremos el error
+                    $selectPrimary.nextElementSibling.innerHTML = `Error ${err.status}: ${message}`;
+                });
+        }
+
+        //Funcion para cargar los municipios (recibira el estado)
+        function loadTowns(state) {
+            //Peticion a la API (el estado es el e.target.value)
+            fetch(`https://api-sepomex.hckdrk.mx/query/get_municipio_por_estado/${state}`)
+                .then(res => res.ok ? res.json() : Promise.reject(res))
+                .then(json => {
+                    console.log(json);
+                    let $options = `<option value="">Elige un Municipio</option>`;
+                    //Concatenamos un option por cada estado del json
+                    json.response.municipios.forEach(el => $options += `<option value="${el}">${el}</option>`);
+                    $selectSecundary.innerHTML = $options;
+
+                })
+                .catch(err => {
+                    console.log(err);
+                    let message = err.statusText || "Ocurrio un error";
+                    $selectSecundary.nextElementSibling.innerHTML = `Error ${err.status}: ${message}`;
+                });
+        }
+
+        //Funcion para cargar las colonias del municipio
+        function loadSuburbs(suburb) {
+            //Peticion a la API (el estado es el e.target.value)
+            fetch(`https://api-sepomex.hckdrk.mx/query/get_colonia_por_municipio/${suburb}`)
+                .then(res => res.ok ? res.json() : Promise.reject(res))
+                .then(json => {
+                    console.log(json);
+                    let $options = `<option value="">Elige una Colonia</option>`;
+                    //Concatenamos un option por cada estado del json
+                    json.response.colonia.forEach(el => $options += `<option value="${el}">${el}</option>`);
+                    $selectThird.innerHTML = $options;
+
+                })
+                .catch(err => {
+                    console.log(err);
+                    let message = err.statusText || "Ocurrio un error";
+                    $selectThird.nextElementSibling.innerHTML = `Error ${err.status}: ${message}`;
+                });
+        }
+
+        //Llamar la funcion de los estados a la carga del DOM
+        d.addEventListener("DOMContentLoaded", loadStates);
+        //Obtener el valor del select con el evento change
+        $selectPrimary.addEventListener("change", e => loadTowns(e.target.value));
+        $selectSecundary.addEventListener("change", e => loadSuburbs(e.target.value));
+    </script>
+</body>
+
+</html>

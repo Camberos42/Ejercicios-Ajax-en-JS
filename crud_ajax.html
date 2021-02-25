@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRUD API REST AJAX</title>
+</head>
+
+<body>
+    <h2>CRUD API REST AJAX</h2>
+    <section class="crud">
+        <article>
+            <h2 class="crud-title">Agregar Santo</h2>
+            <form class="crud-form">
+                <input type="text" name="nombre" placeholder="Nombre" required>
+                <br>
+                <input type="text" name="constelacion" placeholder="Constelacion" required>
+                <br>
+                <input type="submit" value="Enviar">
+                <input type="hidden" name="id">
+            </form>
+        </article>
+        <article>
+            <h2>Ver Santos</h2>
+            <table class="crud-table">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Constelacion</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </article>
+    </section>
+    <template id="crud-template">
+        <tr>
+            <td class="name"> </td>
+            <td class="constallation"> </td>
+            <td>
+                <button class="edit">editar</button>
+                <button class="delete">eliminar</button>
+            </td>
+        </tr>
+    </template>
+
+    <script>
+        const d = document,
+            $table = d.querySelector(".crud-table"),
+            $form = d.querySelector(".crud-form"),
+            $title = d.querySelector(".crud-title"),
+            $template = d.querySelector("#crud-template").content, //Acceder al contenido del crud-template
+            $fragment = d.createDocumentFragment();
+
+        //Crear la funcion 
+        const ajax = (options) => {
+            let {
+                method,
+                url,
+                success,
+                error,
+                data
+            } = options;
+            const xhr = new XMLHttpRequest();
+
+            xhr.addEventListener("readystatechange", (e) => {
+                if (xhr.readyState !== 4) return;
+
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    let json = JSON.parse(xhr.responseText); //Convertir de objeto javascript a formato json
+                    success(json); //Llamo la funcion sucess y le paso la respuesta (ya en objeto js)
+                } else {
+                    let message = xhr.statusText || "Ocurrió un error";
+                    error(`Error ${xhr.status}: ${message}`);
+                }
+            });
+
+            xhr.open(method || "GET", url); //Si no se especifica el metodo toma el GET por default
+            xhr.setRequestHeader("Content-type", "application/json; charset=utf-8");
+            xhr.send(JSON.stringify(data)) //Mandar la data 
+        }
+
+        //Ejecutar la funcion ajax que contendra el objeto options
+        const getAll = () => {
+            ajax({
+                method: "GET",
+                url: "http://localhost:3000/santos",
+                success: (res) => {
+                    console.log(res);
+
+                    res.forEach(el => {
+                        //Interactuar con lo que hay en el template (los botones)
+                        $template.querySelector(".name").textContent = el.nombre; //Busca el selector con la clase name para agregar el nombre del santo
+                        $template.querySelector(".constallation").textContent = el.constelacion; //Se le agrega la constelacion
+                        $template.querySelector(".edit").dataset.id = el.id; //Seleccionar el boton edit y acceder a su data atribute, y almacenar la propiedad id en el data atribute del boton edit
+                        $template.querySelector(".edit").dataset.name = el.nombre;
+                        $template.querySelector(".edit").dataset.constallation = el.constelacion;
+                        $template.querySelector(".delete").dataset.id = el.id;
+
+                        let $clone = d.importNode($template, true); //Se debe clonar el template para que quede en memoria (true si lo quiero con el contenido, false si lo quiero vacio)
+                        $fragment.appendChild($clone); //Agregar el nodo clonado al fragmento
+                    });
+
+                    $table.querySelector("tbody").appendChild($fragment); //Agregar el fragmento en el tbody de la tabla
+                },
+                error: (err) => {
+                    console.error(err); //Para que se vea como error (puede ser warn)
+                    $table.insertAdjacentHTML("afterend", `<p><b>${err}</b></p>`);
+                },
+                data: null
+            });
+        }
+
+        d.addEventListener("DOMContentLoaded", getAll);
+
+        d.addEventListener("submit", (e) => {
+            if (e.target === $form) {
+                e.preventDefault();
+
+                //Si no existe el valor (caja vacia) se hara una Peticion POST, Si existe se hara un PUT
+                if (!e.target.id.value) {
+                    //POST(create)
+                    ajax({
+                        url: "http://localhost:3000/santos",
+                        method: "POST",
+                        success: (res) => location.reload(), //Recargar la pagina si la peticion es exitosa
+                        error: () => $form.insertAdjacentHTML("afterend", `<p><b>${err}</b></p>`), //Insertar error despues del form
+                        data: {
+                            nombre: e.target.nombre.value,
+                            constelacion: e.target.constelacion.value,
+                        }
+                    });
+                } else {
+                    //PUT (update)
+                    ajax({
+                        url: `http://localhost:3000/santos/${e.target.id.value}`, //acceder al input hidden del formulario
+                        method: "PUT",
+                        success: (res) => location.reload(), //Recargar la pagina si la peticion es exitosa
+                        error: () => $form.insertAdjacentHTML("afterend", `<p><b>${err}</b></p>`), //Insertar error despues del form
+                        data: {
+                            nombre: e.target.nombre.value,
+                            constelacion: e.target.constelacion.value,
+                        }
+                    });
+                }
+            }
+        });
+
+        d.addEventListener("click", (e) => {
+            if (e.target.matches(".edit")) {
+                //alert("Presionaste el boton de editar")
+                $title.textContent = "Editar Santo"; //Editar el H2 para que diga que se va a editar
+                $form.nombre.value = e.target.dataset.name; //Asignarle el valor del dataatribute a la caja de texto
+                $form.constelacion.value = e.target.dataset.constallation;
+                $form.id.value = e.target.dataset.id; //Lo tomara del hidden input 
+            }
+
+            if (e.target.matches(".delete")) {
+                //Si se presiona Ok validara TRUE, sino sera FALSE
+                let isDelete = confirm(`¿Estas seguro de eliminar el id ${e.target.dataset.id}?`);
+
+                if (isDelete) {
+                    //DELETE
+                    ajax({
+                        url: `http://localhost:3000/santos/${e.target.dataset.id}`, //acceder al input hidden del formulario
+                        method: "DELETE",
+                        success: (res) => location.reload(), //Recargar la pagina si la peticion es exitosa
+                        error: () => alert(err) //Insertar error despues del form
+                    });
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>

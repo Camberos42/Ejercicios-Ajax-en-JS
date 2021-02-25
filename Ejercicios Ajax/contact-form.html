@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        html {
+            box-sizing: border-box;
+            font-family: sans-serif;
+            font-size: 16px;
+        }
+        
+        *,
+        *:before,
+        *:after {
+            box-sizing: inherit;
+        }
+        
+        body {
+            margin: 0;
+            overflow-x: hidden;
+        }
+        /* **********     ContactForm Validations     ********** */
+        
+        .contact-form {
+            --form-ok-color: #4caf50;
+            --form-error-color: #f44336;
+            margin-left: auto;
+            margin-right: auto;
+            width: 80%;
+        }
+        
+        .contact-form>* {
+            padding: 0.5rem;
+            margin: 1rem auto;
+            display: block;
+            width: 100%;
+        }
+        /*  */
+        /* Para restringir que se pueda alterar el tamaño del textarea*/
+        
+        .contact-form textarea {
+            resize: none;
+        }
+        
+        .contact-form legend,
+        .contact-form-response {
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-align: center;
+        }
+        /*  */
+        /* Estandarizar el estilo de letra a los elementos del formulario */
+        
+        .contact-form input,
+        .contact-form textarea {
+            font-size: 1rem;
+            font-family: sans-serif;
+        }
+        
+        .contact-form input[type="submit"] {
+            width: 50%;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        /*  */
+        /* A todos los selectores que tengan la propiedad placeholder aplicarle un color de letra*/
+        
+        .contact-form *::placeholder {
+            color: #000;
+        }
+        /*VALIDACIONES*/
+        /* Todos los elementos que sean hijos va a validar que un elemento tenga required, sea valida y este dentro del formulario contacto */
+        
+        .contact-form [required]:valid {
+            border: thin solid var(--form-ok-color);
+        }
+        
+        .contact-form [required]:invalid {
+            border: thin solid var(--form-error-color);
+        }
+        /*MENSAJES DE ERROR*/
+        /*-1rem es para que aparezca justo pegado del input*/
+        
+        .contact-form-error {
+            margin-top: -1rem;
+            font-size: 80%;
+            background-color: var(--form-error-color);
+            color: #fff;
+            transition: all 800ms ease;
+        }
+        /*MOSTRAR MENSAJE DE ERROR*/
+        /*Se mostrara cuando se le agregue la clase active*/
+        
+        .contact-form-error.is-active {
+            display: block;
+            animation: show-message 1s 1 normal 0s ease-out both;
+        }
+        
+        .contact-form-loader {
+            text-align: center;
+        }
+        /*OCULTAR MENSAJE DE ERROR*/
+        
+        .none {
+            display: none;
+        }
+        /*  */
+        /* ANIMACION */
+        
+        @keyframes show-message {
+            0% {
+                visibility: hidden;
+                opacity: 0;
+            }
+            100% {
+                visibility: visible;
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <form class="contact-form">
+        <legend>Envianos tus comentarios</legend>
+        <input type="text" placeholder="Escribe tu nombre" name="nombre" pattern="^[A-Za-zÑñÁáÉéÍíÓóÚúÜü\s]+$" title="nombre solo acepta letras y espacios en blanco" required>
+        <input type="email" placeholder="Escribe tu Email" name="email" pattern="^[a-z0-9]+(\.[_a-z0-9]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,15})$" title="Email incorrecto" required>
+        <input type="text" placeholder="Asunto a tratar" name="subject" title="El asunto es requerido" required>
+        <textarea placeholder="Escribe tus comentarios" cols="50" rows="5" name="comments" data-pattern="^.{1,255}$" title="Tu comentario no debe de exceder los 255 caracteres" required></textarea>
+        <input type="submit" value="Enviar">
+
+        <div class="contact-form-loader none">
+            <img src="../assets/tail-spin.svg" alt="Cargando">
+        </div>
+        <div class="contact-form-response none">
+            <p>Los datos han sido enviados</p>
+        </div>
+    </form>
+
+</body>
+
+<script>
+    const d = document;
+
+    function contactForm() {
+        const $form = d.querySelector(".contact-form"),
+            $inputs = d.querySelectorAll(".contact-form [required]"); //Todos los inputs del formulario que tengan required 
+        //console.log($inputs);
+
+        $inputs.forEach(input => {
+            const $span = d.createElement("span");
+            $span.id = input.name; //Atributo id asignarle la propiedad name del input
+            $span.textContent = input.title; //Asignarle el texto que tiene en el input en la propiedad title
+            $span.classList.add("contact-form-error", "none"); //Agregarle la clase para ocultar y darle estilo al mensaje
+            input.insertAdjacentElement("afterend", $span) //Hermano posterior del input
+        });
+
+        //Delegacion de eventos
+        d.addEventListener("keyup", e => {
+            //Validacion de los inputs que sean requeridos
+            if (e.target.matches(".contact-form [required]")) {
+                let $input = e.target, //Elementos que originan el evento
+                    pattern = $input.pattern || $input.dataset.pattern; //Para que tome en cuenta tambien el textarea
+                //console.log($input, pattern);
+
+                //Validar cuando se valide por un pattern
+                if (pattern && $input.value !== "") {
+                    //console.log("El input tiene patron");
+                    let regex = new RegExp(pattern);
+                    return !regex.exec($input.value) //Condicion que valida si se cumple la expresion regular
+                        //Id del span que se crea dinamicamente
+                        ?
+                        d.getElementById($input.name).classList.add("is-active") //Agregar clase is active
+                        :
+                        d.getElementById($input.name).classList.remove("is-active") //Remover clase is active
+                }
+
+                //Validar cuando no tenga patron (asunto a tratar no lo tiene)
+                if (!pattern) {
+                    //console.log("El input no tiene patron");
+                    return $input.value === "" //Condicion que valida si esta vacio el input
+                        //Id del span que se crea dinamicamente
+                        ?
+                        d.getElementById($input.name).classList.add("is-active") //Agregar clase is active
+                        :
+                        d.getElementById($input.name).classList.remove("is-active") //Remover clase is active
+                }
+            }
+        });
+
+        //Procesar Formulario (SIMULACION)
+        d.addEventListener("submit", (e) => {
+            e.preventDefault(); //Desactivar para poder mandar los datos al correo
+            alert("Enviando formulario");
+
+            const $loader = d.querySelector(".contact-form-loader"), //Almacenar referencia en el DOM del loader
+                $response = d.querySelector(".contact-form-response"); //Almacenar referencia en el DOM de la respuesta
+
+            //Quitar clase none para que se pueda ver
+            $loader.classList.remove("none");
+
+            fetch("https://formsubmit.co/ajax/jesda4@gmail.com", {
+                    method: "POST",
+                    body: new FormData(e.target)
+                })
+                .then(res => res.ok ? res.json() : Promise.reject(res))
+                .then(json => {
+                    console.log(json);
+                    $loader.classList.add("none");
+                    $response.classList.remove("none");
+                    $response.innerHTML = `<p>${json.message}</p>`
+                    $form.reset(); //Resetear el formulario
+
+                })
+                .catch(err => {
+                    console.log(err);
+                    let message = err.statusText || "Ocurrio un error al enviar, intenta nuevamente";
+                    $response.innerHTML = `<p>Error ${err.status}: ${message}</p>`
+                })
+                .finally(() => setTimeout(() => {
+                    $response.classList.add("none");
+                    $response.innerHTML = ""; //Limpiar el mensaje html
+                }, 3000));
+            //Mostrar el svg que se esta cargando el envio 
+            /*setTimeout(() => {
+                $loader.classList.add("none");
+                $response.classList.remove("none");
+                $form.reset(); //Resetear el formulario
+
+                //Mostrar y Quitar el mensaje de que se mandaron los datos
+                setTimeout(() => {
+                    $response.classList.add("none");
+                }, 3000);
+            }, 3000);  */
+        });
+    }
+    d.addEventListener("DOMContentLoaded", contactForm)
+</script>
+
+</html>

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buscador Shows de TV</title>
+    <style>
+        .loader {
+            display: block;
+            margin: auto;
+        }
+        
+        .grid-fluid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Buscador Shows de TV</h1>
+    <input type="search" id="search" placeholder="Buscar shows de TV..." autocomplete="off">
+    <section id="shows" class="grid-fluid"></section>
+    <template id="show-template">
+        <article class="show">
+            <h3></h3>
+            <div></div>
+            <img src="" alt="">
+            <a href=""></a>
+        </article>
+    </template>
+</body>
+
+<script>
+    const d = document,
+        $template = d.getElementById("show-template").content, //Nos interesa el contenido del template
+        $shows = d.getElementById("shows"),
+        $fragment = d.createDocumentFragment();
+
+    //Evento para buscar al presionar Enter
+    d.addEventListener("keypress", async e => {
+        if (e.target.matches("#search")) {
+            //console.log(e.key)
+            if (e.key === "Enter") {
+                try {
+                    //Cargar el loader
+                    $shows.innerHTML = `<img class="loader" src="/assets/tail-spin.svg" alt="Cargando...">`;
+
+                    //Variable que almacenara lo que se ingresa en el input
+                    let query0 = e.target.value; //Yo se lo agregue para que se mostrara que es lo que no se encontro con la mayuscula
+                    let query = query0.toLowerCase(),
+                        //El endpoint (link sacado del sitio de la API)
+                        api = `http://api.tvmaze.com/search/shows?q=${query}`,
+                        //Variable que espera la respuesta de la API
+                        res = await fetch(api),
+                        //Variable que esperara que la respuesta se haya convertido a formato json
+                        json = await res.json();
+                    console.log(api, res, json);
+
+                    //Manipular el error
+                    if (!res.ok) throw {
+                        status: res.status,
+                        statusText: res.statusText
+                    }
+
+                    //Notificar si no hay coincidencias de busqueda (si no hay la API manda un array vacio)
+                    console.log(json.length)
+                    if (json.length === 0) {
+                        $shows.innerHTML = `<h2>No existen resultados de shows para el criterio de busqueda: 
+                            <mark>${query0}</mark></h2>`;
+                    } else {
+                        //Listar los Tv show de acuerdo al texto ingresado en el Search
+                        json.forEach(el => {
+                            //(Propiedad del objeto del show que manda la APi)
+                            $template.querySelector("h3").textContent = el.show.name;
+                            /*Se coloco inner porque el summary viene en formato html, ademas 
+                            se hace una validacion en caso de que no venga descripcion*/
+                            $template.querySelector("div").innerHTML = el.show.summary ?
+                                el.show.summary : "Sin descripcion";
+                            //Validar si el show tiene su propiedad image, si no lo tiene pondra imagen dummy(default)
+                            $template.querySelector("img").src = el.show.image ?
+                                el.show.image.medium : "http://static.tvmaze.com/images/no-img/no-img-portrait-text.png";
+                            $template.querySelector("img").alt = el.show.name;
+                            //Que las imagenes no rebasen el ancho de su contenedor
+                            $template.querySelector("img").style.maxWidth = "100%";
+                            $template.querySelector("a").href = el.show.url ? el.show.url : "#";
+                            $template.querySelector("a").target = el.show.url ? "_blank" : "_self";
+                            $template.querySelector("a").textContent = el.show.url ? "ver mas..." : "";
+
+                            let $clone = d.importNode($template, true);
+
+                            //Insertar el clone donde viene el template en el fragmento
+                            $fragment.appendChild($clone);
+                        });
+
+                        //Remover el loader antes de insertar los shows
+                        $shows.innerHTML = "";
+                        //Insertar el fragmento en la seccion shows
+                        $shows.appendChild($fragment);
+                    }
+
+                } catch (err) {
+                    console.log(err);
+                    let message = err.statusText || "Ocurrio un error";
+                    $shows.innerHTML = `<p>Error ${err.status}: ${err.message}</p>`;
+                }
+            }
+        }
+    });
+</script>
+
+</html>

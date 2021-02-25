@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WordPress REST API</title>
+    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        html {
+            box-sizing: border-box;
+            font-family: 'Raleway', sans-serif;
+            font-size: 16px;
+        }
+        
+        *,
+        *:after,
+        *:before {
+            box-sizing: inherit;
+        }
+        
+        a {
+            color: #01579b;
+            transition: all .3s ease-out;
+        }
+        
+        a:hover {
+            opacity: .75;
+        }
+        
+        img {
+            max-width: 100%;
+            height: auto;
+        }
+        
+        h1 {
+            text-align: center;
+        }
+        
+        hr {
+            border: thin solid #01579b;
+            margin: 3rem auto;
+            width: 80%;
+        }
+        
+        .site {
+            margin: 1rem auto;
+            padding: 1rem;
+            max-width: 50%;
+            text-align: center;
+        }
+        
+        .post {
+            margin: 1rem auto;
+            padding: 1rem;
+            border-radius: .5rem;
+            max-width: 80%;
+            text-align: center;
+            background-color: #eceff1;
+        }
+        
+        .post-author img {
+            border-radius: 50%;
+        }
+        
+        .post-date {
+            margin: 1rem auto;
+            display: block;
+        }
+        
+        .post-excerpt,
+        .post-categories,
+        .post-tags,
+        .post-content {
+            text-align: left;
+        }
+        
+        .post-content summary {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        .post-content>article {
+            padding: 1rem;
+            background-color: #e3f2fd;
+        }
+        
+        .post-content img {
+            display: block;
+            margin: auto;
+        }
+        
+        .loader {
+            display: none;
+            margin: 2rem auto;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>WordPress REST API</h1>
+    <article id="site" class="site"></article>
+    <section id="posts" class="posts"></section>
+    <img class="loader" src="../assets/tail-spin.svg" alt="Cargando...">
+    <template id="post-template">
+    <article class="post">
+      <img class="post-image">
+      <aside>
+        <h2 class="post-title"></h2>
+        <figure class="post-author"></figure>
+        <small class="post-date"></small>
+        <a class="post-link" target="_blank">Ver publicación original</a>
+        <p class="post-excerpt"></p>
+        <div class="post-categories"></div>
+        <div class="post-tags"></div>
+        <details class="post-content">
+          <summary>Ver contenido de la publicación</summary>
+          <article></article>
+        </details>
+      </aside>
+    </article>
+    <hr>
+  </template>
+</body>
+
+<script>
+    const d = document,
+        w = window,
+        $site = d.getElementById("site"),
+        $posts = d.getElementById("posts"),
+        $loader = d.querySelector(".loader"),
+        $template = d.getElementById("post-template").content,
+        $fragment = d.createDocumentFragment(),
+        //Nombre del dominio al cual yo voy a acceder del API
+        DOMAIN = "https://malvestida.com/", //Otro sitio Lucylara.com, https://css-tricks.com/
+        //Site (link hasta el /wp-json)
+        SITE = `${DOMAIN}/wp-json`,
+        //Informacion nativa de la API (toda la info del sitio hecho en wordpress)
+        API_WP = `${SITE}/wp/v2`,
+        //Diferentes endpoints
+        POSTS = `${API_WP}/posts?_embed`, //Se agrega emdeb para obtener TODA la info (no hacer 4 peticiones fetch separadas)
+        PAGES = `${API_WP}/pages`,
+        CATEGORIES = `${API_WP}/categories`;
+
+    let page = 1,
+        perPage = 5;
+
+
+    //Peticion fetch, accedemos a la api de wordpress colocando wp-json al final de la url
+    /*fetch(POSTS)
+        .then(res => res.ok ? res.json() : Promise.reject(res))
+        .then(json => {
+            console.log(json);
+        });*/
+
+    //Obtener la data del sitio
+    function getSiteData() {
+        fetch(SITE)
+            .then(res => res.ok ? res.json() : Promise.reject(res))
+            .then(json => {
+                console.log(json);
+
+                //Ingresar la data al frontend (accediendo a las propiedades del json que llega como respuesta)
+                $site.innerHTML = `
+                <h3>Sitio Web</h3>
+                <h2>
+                    <a href="${json.url}" target="_blank">${json.name}</a>
+                </h2>
+                <p>${json.description}</p>
+                <p>${json.timezone_string}</p>`;
+            })
+            .catch(err => {
+                console.log(err);
+                let message = err.statusText || "Ocurrio un error";
+                $site.innerHTML = `Error ${err.status}: ${message}`;
+            });
+    }
+
+    //Obtener los posts
+    function getPosts() {
+        //mostrar el loader al inicio de la peticion fetch 
+        $loader.style.display = "block";
+        fetch(`${POSTS}&page=${page}&per_page=${perPage}`)
+            .then(res => res.ok ? res.json() : Promise.reject(res))
+            .then(json => {
+
+                console.log(json);
+                json.forEach(el => {
+                    //Tags y Categories
+                    let categories = "",
+                        tags = "";
+                    el._embedded["wp:term"][0].forEach(el => categories += `<li>${el.name}</li>`);
+                    el._embedded["wp:term"][1].forEach(el => tags += `<li>${el.name}</li>`)
+                        //Inyectar el codigo de la imagen en el frontend
+                    $template.querySelector(".post-image").src = el._embedded["wp:featuredmedia"] ?
+                        el._embedded["wp:featuredmedia"][0].source_url : ""; //Validar que existe la propiedad wp:featuredmedia en embedded
+                    $template.querySelector(".post-image").alt = el.title.rendered;
+                    //Agregamos el post (propiedad del json: title.rendered)
+                    $template.querySelector(".post-title").innerHTML = el.title.rendered;
+                    //Inyectar datos del autor del post
+                    $template.querySelector(".post-author").innerHTML = `
+                    <img src="${el._embedded.author[0].avatar_urls["48"]}" alt="${el._embedded.author[0].name}">
+                    <figcaption>${el._embedded.author[0].name}</figcaption>`;
+                    //Inyectar info de la fecha (se transformara el formato de fecha a uno mas facil de leer)
+                    $template.querySelector(".post-date").innerHTML = new Date(el.date).toLocaleDateString();
+                    //Inyectar el link del post
+                    $template.querySelector(".post-link").href = el.link;
+                    //Inyectar el excerpt
+                    $template.querySelector(".post-excerpt").innerHTML = el.excerpt.rendered.replace("[&hellip;]",
+                        "..."); //Ya que en el Html mostraba ([...])
+
+                    //Insertar Categorias
+                    $template.querySelector(".post-categories").innerHTML = `
+                    <p>Categorias</p>
+                    <ul>${categories}</ul>`;
+                    //Insertar Tags
+                    $template.querySelector(".post-tags").innerHTML = `
+                    <p>Tags</p>
+                    <ul>${tags}</ul>`;
+
+                    //Insertar el contenido en el summary...Inyectar al hijo directo de post-content (article)
+                    $template.querySelector(".post-content > article").innerHTML = el.content.rendered;
+
+                    //Clonacion para agregarlo al fragmento y hacer una sola incersion
+                    let $clone = d.importNode($template, true);
+                    $fragment.appendChild($clone);
+                });
+
+                //Insertamos el fragmento
+                $posts.appendChild($fragment);
+                $loader.style.display = "none";
+            })
+            .catch(err => {
+                console.log(err);
+                let message = err.statusText || "Ocurrio un error";
+                $posts.innerHTML = `Error ${err.status}: ${message}`;
+
+                //Lo oculto en esta peticion ya que es la que tardara mas (los posts)
+                $loader.style.display = "none";
+            });
+
+
+    }
+
+    d.addEventListener("DOMContentLoaded", e => {
+        getSiteData();
+        getPosts();
+    });
+
+    w.addEventListener("scroll", e => {
+        //Destructurar elementos del dom (etiqueta html)
+        const {
+            scrollTop,
+            clientHeight,
+            scrollHeight
+        } = d.documentElement;
+        console.log(scrollTop, clientHeight, scrollHeight);
+
+        //Validacion para cargar otros posts al llegar al final del scroll
+        if (scrollTop + clientHeight >= scrollHeight) {
+            console.log("Cargar mas Posts");
+            //Incrementar el valor de la pagina para cargar otros 5 posts
+            page++;
+            getPosts();
+        }
+    });
+</script>
+
+</html>
